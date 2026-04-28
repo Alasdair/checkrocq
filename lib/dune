@@ -1,0 +1,4 @@
+(library
+ (name checkrocq)
+ (libraries sedlex unix)
+ (preprocess (pps sedlex.ppx)))

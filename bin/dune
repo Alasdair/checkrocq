@@ -1,0 +1,4 @@
+(executable
+ (public_name checkrocq)
+ (name main)
+ (libraries checkrocq))
