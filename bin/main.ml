@@ -56,6 +56,14 @@ let rec do_searches repl = function
       if resp.Repl.stdout <> "" then print_string resp.Repl.stdout;
       do_searches repl rest
 
+let rec show_last_goal_state n = function
+  | [] -> ()
+  | (span, resp) :: responses ->
+      let out = resp.Repl.stdout in
+      if String.trim out = "" then show_last_goal_state (n + 1) responses
+      else if n > 0 then Printf.printf "Last goal state from line %d:\n%s\n" span.start.line resp.Repl.stdout
+      else Printf.printf "Last goal state:\n%s\n" resp.Repl.stdout
+
 let () =
   Arg.parse spec anon usage_msg;
   let path =
@@ -68,7 +76,7 @@ let () =
   let source = In_channel.(with_open_text path input_all) in
   let commands = commands_of_string source in
   let init_resp, repl = Repl.start ~extra_args:["-color"; !color] path in
-  let rec loop last_resp = function
+  let rec loop responses = function
     | [] ->
         do_searches repl !searches;
         ignore (Repl.stop repl);
@@ -79,14 +87,14 @@ let () =
         | Some error ->
             ( match !searches with
             | [] ->
-                Printf.printf "Last goal state:\n%s\n" last_resp.Repl.stdout;
+                show_last_goal_state 0 responses;
                 Printf.printf "Command:\n%s\n\n" cmd;
                 Printf.printf "Error at line %d, character %d:\n%s" span.start.line span.start.col error
             | _ -> do_searches repl !searches
             );
             ignore (Repl.stop repl);
             exit 1
-        | None -> loop resp rest
+        | None -> loop ((span, resp) :: responses) rest
       )
   in
-  loop init_resp commands
+  loop [] commands
