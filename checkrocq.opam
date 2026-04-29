@@ -2,12 +2,10 @@
 opam-version: "2.0"
 synopsis: "A short synopsis"
 description: "A longer description"
-maintainer: ["Maintainer Name <maintainer@example.com>"]
-authors: ["Author Name <author@example.com>"]
+maintainer: ["Alasdair Armstrong <alasdair.armstrong@cl.cam.ac.uk>"]
+authors: ["Alasdair Armstrong <alasdair.armstrong@cl.cam.ac.uk>"]
 license: "LICENSE"
-tags: ["add topics" "to describe" "your" "project"]
 homepage: "https://github.com/username/reponame"
-doc: "https://url/to/documentation"
 bug-reports: "https://github.com/username/reponame/issues"
 depends: [
   "dune" {>= "3.21"}
