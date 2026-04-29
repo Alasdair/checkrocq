@@ -28,27 +28,33 @@ let check_spans label expected input =
 let pos l c = { line = l; col = c }
 let span sl sc el ec = { start = pos sl sc; stop = pos el ec }
 
+let check_raises label f =
+  match f () with
+  | exception Lexer_error _ -> ()
+  | _ ->
+      Printf.printf "FAIL: %s (expected Lexer_error)\n" label;
+      exit 1
+
 let () =
   (* Text extraction *)
   check_texts "empty" [] "";
+  check_texts "multi comment" ["Theorem foo : True."] "(* **** *)\n(* \"Text\" *)\n\nTheorem foo : True.";
   check_texts "single command" ["Theorem foo : True."] "Theorem foo : True. ";
   check_texts "two commands" ["Definition x := 1."; "Definition y := 2."] "Definition x := 1. Definition y := 2. ";
   check_texts "command terminated by newline" ["Lemma bar : False."] "Lemma bar : False.\n";
   check_texts "trailing period without whitespace" ["Definition z := 3."] "Definition z := 3.";
-  check_texts "simple comment" ["(* a comment *) Definition a := 1."] "(* a comment *) Definition a := 1.\n";
-  check_texts "nested comment"
-    ["(* outer (* inner *) *) Definition b := 2."]
-    "(* outer (* inner *) *) Definition b := 2.\n";
-  check_texts "period inside comment is not a terminator"
-    ["(* ends here. not here *) Definition c := 3."]
+  check_texts "simple comment" ["Definition a := 1."] "(* a comment *) Definition a := 1.\n";
+  check_texts "nested comment" ["Definition b := 2."] "(* outer (* inner *) *) Definition b := 2.\n";
+  check_texts "period inside comment is not a terminator" ["Definition c := 3."]
     "(* ends here. not here *) Definition c := 3.\n";
   check_texts "string with embedded quote" ["Check \"hello \"\" world\"."] "Check \"hello \"\" world\".\n";
   check_texts "period inside string is not a terminator" ["Check \"not. a. terminator\"."]
     "Check \"not. a. terminator\".\n";
-  check_texts "multiple commands with comments"
+  check_texts "multiple commands"
     ["Theorem t : True."; "Proof."; "trivial."; "Qed."]
     "Theorem t : True.\nProof.\ntrivial.\nQed.\n";
   check_texts "whitespace-only input" [] "   \n  ";
+  check_raises "newline in string" (fun () -> commands "Check \"hello\nworld\".\n");
 
   (* Span tracking: lines are 1-indexed, cols are 0-indexed, stop is exclusive *)
   check_spans "single command span"

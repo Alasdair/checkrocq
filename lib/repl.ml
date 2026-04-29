@@ -69,6 +69,7 @@ let read_output ?(prompt = "< ") (repl : t) =
   { stdout = Buffer.contents out_buf; stderr = Buffer.contents err_buf }
 
 let send_command ?(prompt = "< ") (repl : t) cmd =
+  let cmd = String.concat " " (String.split_on_char '\n' cmd) in
   output_string repl.stdin (cmd ^ "\n");
   flush repl.stdin;
   read_output repl
@@ -102,6 +103,7 @@ let start ?(extra_args = []) path =
 
 let stop t =
   close_out t.stdin;
+  Unix.kill t.pid Sys.sigterm;
   let _, status = Unix.waitpid [] t.pid in
   close_in t.stdout;
   close_in t.stderr;

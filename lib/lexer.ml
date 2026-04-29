@@ -33,14 +33,20 @@ let commands_of_string source =
       s
   in
 
+  let is_whitespace s = String.for_all (fun c -> c = ' ' || c = '\t' || c = '\n' || c = '\r') s in
+
+  let set_start_if_needed s = if !cmd_start = None && not (is_whitespace s) then cmd_start := Some (cur_pos ()) in
+
   let add () =
     let s = Sedlexing.Utf8.lexeme buf in
-    (* Set command start on the first non-whitespace character. *)
-    if !cmd_start = None then (
-      let is_ws = String.for_all (fun c -> c = ' ' || c = '\t' || c = '\n' || c = '\r') s in
-      if not is_ws then cmd_start := Some (cur_pos ())
-    );
+    set_start_if_needed s;
     Buffer.add_string current s;
+    advance s
+  in
+
+  (* Advance position without adding to the output buffer. *)
+  let skip () =
+    let s = Sedlexing.Utf8.lexeme buf in
     advance s
   in
 
@@ -58,16 +64,17 @@ let commands_of_string source =
   let rec comment depth =
     match%sedlex buf with
     | "(*" ->
-        add ();
+        skip ();
         comment (depth + 1)
     | "*)" ->
-        add ();
+        skip ();
         if depth > 1 then comment (depth - 1)
     | '"' ->
-        add ();
-        string_in_comment ()
+        skip ();
+        string_in_comment ();
+        comment depth
     | any ->
-        add ();
+        skip ();
         comment depth
     | _ -> raise (Lexer_error "Unterminated comment")
   (* Lex a string inside a comment so that a comment terminator inside a string does not
@@ -75,11 +82,11 @@ let commands_of_string source =
   and string_in_comment () =
     match%sedlex buf with
     | "\"\"" ->
-        add ();
+        skip ();
         string_in_comment ()
-    | '"' -> add ()
+    | '"' -> skip ()
     | any ->
-        add ();
+        skip ();
         string_in_comment ()
     | _ -> raise (Lexer_error "Unterminated string in comment")
   (* Lex a string. Double "" escapes a quote. *)
@@ -89,6 +96,7 @@ let commands_of_string source =
         add ();
         string ()
     | '"' -> add ()
+    | '\n' -> raise (Lexer_error "Newline in string")
     | any ->
         add ();
         string ()
@@ -96,8 +104,12 @@ let commands_of_string source =
   and main () =
     match%sedlex buf with
     | "(*" ->
-        add ();
+        let s = Sedlexing.Utf8.lexeme buf in
+        set_start_if_needed s;
+        advance s;
         comment 1;
+        (* Replace the entire comment with a single space to avoid merging surrounding tokens. *)
+        Buffer.add_char current ' ';
         main ()
     | '"' ->
         add ();
