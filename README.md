@@ -38,6 +38,8 @@ the file:
 * `--pattern <pat>`: Invokes `Search (<pat>).`
 * `--search <pat>`: Invokes `Search "<pat>".`
 
+There is also `--command <cmd>`. Which will run any Rocq command.
+
 ## Install
 
 Run `dune build` then `dune install`.

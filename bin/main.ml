@@ -22,9 +22,9 @@ let find_error stderr =
   in
   drop_before lines
 
-let usage_msg = "Usage: checkrocq <file.v> [--search <name>] [--pattern <pat>]"
+let usage_msg = "Usage: checkrocq <file.v> [--search <pattern>] [--name <string>]"
 
-type search = Pattern of string | Name of string | Print of string
+type search = Pattern of string | Name of string | Print of string | Command of string
 
 let searches = ref []
 
@@ -34,26 +34,50 @@ let color = ref "no"
 
 let spec =
   [
-    ("--pattern", Arg.String (fun s -> searches := !searches @ [Pattern s]), "<pat> Search for <pat>.");
-    ("--search", Arg.String (fun s -> searches := !searches @ [Name s]), "<name> Search for lemmas involving <name>.");
+    ( "--search",
+      Arg.String (fun s -> searches := !searches @ [Pattern s]),
+      "<pat> Search for <pat>, which can just be a lemma name."
+    );
+    ( "--name",
+      Arg.String (fun s -> searches := !searches @ [Name s]),
+      "<string> Search for lemmas and operations for which the name contains <string>."
+    );
     ("--print", Arg.String (fun s -> searches := !searches @ [Print s]), "<def> Print the Rocq definition <def>.");
+    ("--command", Arg.String (fun s -> searches := !searches @ [Command s]), "<command> Run the Rocq command <command>.");
     ("--color", Arg.Unit (fun () -> color := "yes"), " Cause the Rocq REPL to use colored output.");
     ("--colour", Arg.Unit (fun () -> color := "yes"), "");
   ]
 
 let anon s = match !path with None -> path := Some s | Some _ -> raise (Arg.Bad ("unexpected argument: " ^ s))
 
+let format_search pat =
+  if String.contains pat '|' && pat.[0] <> '[' && pat.[String.length pat - 1] <> ']' then "[" ^ pat ^ "]"
+  else "(" ^ pat ^ ")"
+
+let filter_prompts output =
+  String.split_on_char '\n' output
+  |> List.filter (fun line ->
+         let trimmed = String.trim line in
+         let len = String.length trimmed in
+         not (len > 0 && trimmed.[len - 1] = '<')
+     )
+  |> String.concat "\n"
+
 let rec do_searches repl = function
   | [] -> ()
   | search :: rest ->
       let cmd =
         match search with
-        | Pattern pat -> Printf.sprintf "Search (%s)." pat
+        | Pattern pat -> Printf.sprintf "Search %s." (format_search pat)
         | Name id -> Printf.sprintf "Search \"%s\"." id
         | Print id -> Printf.sprintf "Print %s." id
+        | Command cmd ->
+            let len = String.length cmd in
+            if len > 0 && cmd.[len - 1] <> '.' then cmd ^ "." else cmd
       in
       let resp = Repl.send_command repl cmd in
       if resp.Repl.stdout <> "" then print_string resp.Repl.stdout;
+      if resp.Repl.stderr <> "" then prerr_string (filter_prompts resp.Repl.stderr);
       do_searches repl rest
 
 let rec show_last_goal_state n = function
@@ -85,15 +109,19 @@ let () =
         let resp = Repl.send_command repl cmd in
         match find_error resp.Repl.stderr with
         | Some error ->
-            ( match !searches with
-            | [] ->
-                show_last_goal_state 0 responses;
-                Printf.printf "Command:\n%s\n\n" cmd;
-                Printf.printf "Error at line %d, character %d:\n%s" span.start.line span.start.col error
-            | _ -> do_searches repl !searches
-            );
+            let code =
+              match !searches with
+              | [] ->
+                  show_last_goal_state 0 responses;
+                  Printf.printf "Command:\n%s\n\n" cmd;
+                  Printf.printf "Error at line %d, character %d:\n%s" span.start.line span.start.col error;
+                  1
+              | _ ->
+                  do_searches repl !searches;
+                  0
+            in
             ignore (Repl.stop repl);
-            exit 1
+            exit code
         | None -> loop ((span, resp) :: responses) rest
       )
   in
