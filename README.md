@@ -31,18 +31,21 @@ Error:  (in proof sub_abst): Attempt to save an incomplete proof
 ```
 
 There is also a feature to allow the LLM to search for usable lemmas
-at that point in the file, using either the `--pattern` or `--search`
+at that point in the file, using either the `--search` or `--name`
 flags. Both of which invoke the Rocq `Search` command at that point in
 the file:
 
-* `--pattern <pat>`: Invokes `Search (<pat>).`
-* `--search <pat>`: Invokes `Search "<pat>".`
+* `--search <pat>`: Invokes `Search (<pat>).`
+* `--name <pat>`: Invokes `Search "<pat>".`
 
 There is also `--command <cmd>`. Which will run any Rocq command.
 
 ## Install
 
 Run `dune build` then `dune install`.
+
+There is a `SKILL.md` file in the `.claude` directory that can be
+dropped into projects.
 
 ## Limitations
 
